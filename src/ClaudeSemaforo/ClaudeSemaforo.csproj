@@ -8,6 +8,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>ClaudeSemaforo</AssemblyName>
     <RootNamespace>ClaudeSemaforo</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Product>Claude Semáforo</Product>
+    <Company>gesuinox</Company>
+    <Description>Barra de status do Claude Code para Windows</Description>
     <!-- Exigido pelo LibraryImport (P/Invoke gerado em tempo de compilação). -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>

@@ -41,12 +41,28 @@ e só quando a data de modificação muda.
 - Quando nenhuma sessão está rodando, a luz continua acesa porém **fraca**: ela mostra
   como terminou a última conversa.
 
+## Instalação
+
+Baixe o `ClaudeSemaforo-1.0.0-setup.exe` e execute. Ele instala na pasta do usuário,
+**sem pedir senha de administrador**, e oferece as opções de iniciar junto com o Windows e
+criar atalho na área de trabalho. O executável é self-contained: não exige o .NET
+instalado na máquina.
+
+Para gerar o instalador a partir do código (precisa do SDK do .NET 10 e do
+[Inno Setup 6](https://jrsoftware.org/isdl.php)):
+
+```bash
+powershell -ExecutionPolicy Bypass -File installer\publicar.ps1
+```
+
 ## Uso
 
 - **Duplo clique** traz a janela do Claude para a frente.
 - **Arraste** com o botão esquerdo para mover — a barra nunca sai da área visível da tela.
-- **Botão direito** (ou o ícone na bandeja) abre o menu: abrir o Claude, cor, sempre no
-  topo, iniciar com o Windows, levar para o canto, atualizar agora e sair.
+- **Fixar na tela** trava a posição: com a opção ligada o arrasto é ignorado e a barra não
+  sai do lugar sem querer.
+- **Botão direito** (ou o ícone na bandeja) abre o menu: abrir o Claude, cor, fixar, sempre
+  no topo, iniciar com o Windows, levar para o canto, atualizar agora e sair.
 
 Tudo o que é texto vive no tooltip: o estado por extenso, a pasta do projeto, o apelido
 que o Claude Code dá à sessão (`civilcalc-4f` — a pasta mais um sufixo que separa sessões

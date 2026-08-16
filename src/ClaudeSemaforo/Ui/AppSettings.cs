@@ -15,6 +15,9 @@ internal sealed class AppSettings
     public int? Y { get; set; }
     public bool AlwaysOnTop { get; set; } = true;
 
+    /// <summary>Fixada: o arrasto é ignorado, para não sair do lugar sem querer.</summary>
+    public bool Locked { get; set; }
+
     /// <summary>Id do tema: "claude", "dark" ou "light".</summary>
     public string Theme { get; set; } = Ui.Theme.Dark.Id;
 

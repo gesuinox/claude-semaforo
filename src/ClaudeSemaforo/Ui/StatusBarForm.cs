@@ -29,6 +29,7 @@ internal sealed class StatusBarForm : Form
     private NotifyIcon _tray = null!;
     private ToolStripMenuItem _topMostItem = null!;
     private ToolStripMenuItem _autoStartItem = null!;
+    private ToolStripMenuItem _lockItem = null!;
     private readonly List<ToolStripMenuItem> _themeItems = [];
 
     private Theme _theme;
@@ -106,7 +107,7 @@ internal sealed class StatusBarForm : Form
         _ => _theme.LightOff,
     };
 
-    private static string BuildTooltip(StatusSnapshot s)
+    private string BuildTooltip(StatusSnapshot s)
     {
         var lines = new List<string> { s.StateLabel + (s.ProjectName is null ? "" : $" · {s.ProjectName}") };
 
@@ -138,7 +139,9 @@ internal sealed class StatusBarForm : Form
             lines.Add("Uso indisponível: abra o Claude Desktop ao menos uma vez");
         }
 
-        lines.Add("Duplo clique abre o Claude · arraste para mover");
+        lines.Add(_settings.Locked
+            ? "Duplo clique abre o Claude · fixada na tela"
+            : "Duplo clique abre o Claude · arraste para mover");
         return string.Join(Environment.NewLine, lines);
     }
 
@@ -329,7 +332,7 @@ internal sealed class StatusBarForm : Form
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
-        if (e.Button != MouseButtons.Left) return;
+        if (e.Button != MouseButtons.Left || _settings.Locked) return;
 
         _pressed = true;
         _pressOrigin = e.Location;
@@ -405,10 +408,24 @@ internal sealed class StatusBarForm : Form
             colors.DropDownItems.Add(item);
         }
 
+        _lockItem = new ToolStripMenuItem("Fixar na tela")
+        {
+            Checked = _settings.Locked,
+            CheckOnClick = true,
+        };
+        _lockItem.CheckedChanged += (_, _) =>
+        {
+            _settings.Locked = _lockItem.Checked;
+            _settings.Save();
+            _pressed = false;
+            _tip.SetToolTip(this, BuildTooltip(_snapshot));
+        };
+
         var menu = new ContextMenuStrip();
         menu.Items.Add("Abrir o Claude", null, (_, _) => ClaudeWindow.Activate());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(colors);
+        menu.Items.Add(_lockItem);
         menu.Items.Add(_topMostItem);
         menu.Items.Add(_autoStartItem);
         menu.Items.Add(new ToolStripSeparator());
@@ -419,6 +436,7 @@ internal sealed class StatusBarForm : Form
 
         ContextMenuStrip = menu;
 
+        // O ícone da bandeja é repintado a cada mudança de estado; este é só o inicial.
         _tray = new NotifyIcon
         {
             Text = "Claude Semáforo",
