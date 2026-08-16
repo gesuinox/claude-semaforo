@@ -61,6 +61,7 @@ public sealed class StatusMonitor : IDisposable
         var state = ActivityState.Unknown;
         string? blockedMessage = null;
         string? project = null;
+        string? sessionName = null;
         DateTime? lastActivity = null;
 
         foreach (var session in sessions)
@@ -75,7 +76,8 @@ public sealed class StatusMonitor : IDisposable
 
             state = read.State;
             blockedMessage = read.Message;
-            project = session.Name ?? ProjectNameOf(session.Cwd);
+            project = ProjectNameOf(session.Cwd) ?? session.Name;
+            sessionName = session.Name;
         }
 
         var live = sessions.Count > 0;
@@ -115,6 +117,7 @@ public sealed class StatusMonitor : IDisposable
             LiveSession = live,
             ActiveSessions = sessions.Count,
             ProjectName = project,
+            SessionName = sessionName,
             BlockedMessage = blockedMessage,
             LastActivityUtc = lastActivity,
             SessionUsage = _lastUsage?.FiveHour,

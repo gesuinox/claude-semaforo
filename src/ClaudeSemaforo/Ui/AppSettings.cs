@@ -15,6 +15,9 @@ internal sealed class AppSettings
     public int? Y { get; set; }
     public bool AlwaysOnTop { get; set; } = true;
 
+    /// <summary>Id do tema: "claude", "dark" ou "light".</summary>
+    public string Theme { get; set; } = Ui.Theme.Dark.Id;
+
     public static AppSettings Load()
     {
         try

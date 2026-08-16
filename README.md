@@ -41,9 +41,27 @@ e só quando a data de modificação muda.
 
 ## Uso
 
-Arraste a barra com o botão esquerdo. O botão direito (ou o ícone na bandeja) abre o
-menu: sempre no topo, iniciar com o Windows, levar para o canto, atualizar agora e sair.
-A posição é guardada em `%APPDATA%\ClaudeSemaforo\settings.json`.
+- **Duplo clique** traz a janela do Claude para a frente.
+- **Arraste** com o botão esquerdo para mover — a barra nunca sai da área visível da tela.
+- **Botão direito** (ou o ícone na bandeja) abre o menu: abrir o Claude, cor, sempre no
+  topo, iniciar com o Windows, levar para o canto, atualizar agora e sair.
+
+O nome ao lado do estado é a **pasta do projeto**. O apelido que o Claude Code dá à
+sessão — `civilcalc-4f`, a pasta mais um sufixo que separa sessões simultâneas — fica no
+tooltip, junto do uso semanal e de quantas sessões estão rodando.
+
+Preferências e posição ficam em `%APPDATA%\ClaudeSemaforo\settings.json`.
+
+### Cores
+
+| Tema | Aparência |
+|---|---|
+| **Claude (laranja)** | Creme e laranja da marca; "trabalhando" acende no próprio laranja |
+| **Escuro** | Grafite neutro (padrão) |
+| **Claro** | Branco com hairline cinza |
+
+As três luzes continuam vermelho/amarelo/verde em qualquer tema — num semáforo a cor é o
+significado —, mas os tons mudam para funcionar sobre fundo claro ou escuro.
 
 ## Compilar
 

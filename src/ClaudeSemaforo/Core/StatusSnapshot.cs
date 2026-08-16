@@ -23,7 +23,15 @@ public sealed record StatusSnapshot
     public bool LiveSession { get; init; }
 
     public int ActiveSessions { get; init; }
+
+    /// <summary>Nome da pasta do projeto — é o que aparece na barra.</summary>
     public string? ProjectName { get; init; }
+
+    /// <summary>
+    /// Apelido que o próprio Claude Code dá à sessão ("civilcalc-4f"): a pasta mais um
+    /// sufixo que separa sessões simultâneas. Fica só no tooltip.
+    /// </summary>
+    public string? SessionName { get; init; }
 
     /// <summary>Texto do bloqueio, com a hora do reset quando o Claude a informa.</summary>
     public string? BlockedMessage { get; init; }

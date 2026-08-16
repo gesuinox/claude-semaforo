@@ -7,6 +7,7 @@ namespace ClaudeSemaforo.Ui;
 /// <summary>
 /// A barra em si: sem borda, sempre no topo, com a altura de uma barra de ferramentas.
 /// Três luzes à esquerda, o rótulo no meio e o anel de uso da janela de 5 horas à direita.
+/// Arrasta com o botão esquerdo; o duplo clique chama a janela do Claude.
 /// </summary>
 internal sealed class StatusBarForm : Form
 {
@@ -30,16 +31,22 @@ internal sealed class StatusBarForm : Form
     private NotifyIcon _tray = null!;
     private ToolStripMenuItem _topMostItem = null!;
     private ToolStripMenuItem _autoStartItem = null!;
+    private readonly List<ToolStripMenuItem> _themeItems = [];
 
+    private Theme _theme;
     private StatusSnapshot _snapshot = new();
     private float _pulsePhase;
+    private bool _pressed;
+    private Point _pressOrigin;
 
     public StatusBarForm(bool demo = false)
     {
+        _theme = Theme.ById(_settings.Theme);
+
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual;
-        BackColor = Palette.Background;
+        BackColor = _theme.Background;
         DoubleBuffered = true;
         TopMost = _settings.AlwaysOnTop;
         Text = "Claude Semáforo";
@@ -68,39 +75,6 @@ internal sealed class StatusBarForm : Form
         OnStatus(_monitor.Current);
     }
 
-    private void StartDemo()
-    {
-        StatusSnapshot[] samples =
-        [
-            new()
-            {
-                State = ActivityState.Working, LiveSession = true, ActiveSessions = 2,
-                ProjectName = "civilcalc", SessionUsage = 48, WeeklyUsage = 50,
-                UsageSampledUtc = DateTime.UtcNow,
-            },
-            new()
-            {
-                State = ActivityState.Done, LiveSession = true, ActiveSessions = 1,
-                ProjectName = "civilcalc", SessionUsage = 72, WeeklyUsage = 50,
-                UsageSampledUtc = DateTime.UtcNow,
-            },
-            new()
-            {
-                State = ActivityState.Blocked, LiveSession = true, ActiveSessions = 1,
-                ProjectName = "civilcalc", SessionUsage = 100, WeeklyUsage = 61,
-                UsageSampledUtc = DateTime.UtcNow,
-                BlockedMessage = "You've hit your session limit · resets 11:50pm (America/Sao_Paulo)",
-            },
-            new() { State = ActivityState.Done, SessionUsage = 12, WeeklyUsage = 50, UsageSampledUtc = DateTime.UtcNow },
-        ];
-
-        var index = 0;
-        _demo = new Timer { Interval = 2500 };
-        _demo.Tick += (_, _) => OnStatus(samples[++index % samples.Length]);
-        _demo.Start();
-        OnStatus(samples[0]);
-    }
-
     protected override CreateParams CreateParams
     {
         get
@@ -126,12 +100,12 @@ internal sealed class StatusBarForm : Form
         Invalidate();
     }
 
-    private static Color ColorOf(ActivityState state) => state switch
+    private Color ColorOf(ActivityState state) => state switch
     {
-        ActivityState.Blocked => Palette.Red,
-        ActivityState.Working => Palette.Amber,
-        ActivityState.Done => Palette.Green,
-        _ => Palette.LightOff,
+        ActivityState.Blocked => _theme.Red,
+        ActivityState.Working => _theme.Amber,
+        ActivityState.Done => _theme.Green,
+        _ => _theme.LightOff,
     };
 
     private static string BuildTooltip(StatusSnapshot s)
@@ -139,6 +113,7 @@ internal sealed class StatusBarForm : Form
         var lines = new List<string> { s.StateLabel + (s.ProjectName is null ? "" : $" · {s.ProjectName}") };
 
         if (s.BlockedMessage is not null) lines.Add(s.BlockedMessage);
+        if (s.SessionName is not null) lines.Add($"Sessão: {s.SessionName}");
 
         lines.Add(s.ActiveSessions switch
         {
@@ -165,6 +140,7 @@ internal sealed class StatusBarForm : Form
             lines.Add("Uso indisponível: abra o Claude Desktop ao menos uma vez");
         }
 
+        lines.Add("Duplo clique abre o Claude · arraste para mover");
         return string.Join(Environment.NewLine, lines);
     }
 
@@ -203,7 +179,7 @@ internal sealed class StatusBarForm : Form
         var gap = h * 0.13f;
         var ringD = h * 0.72f;
 
-        using (var border = new Pen(Palette.Border))
+        using (var border = new Pen(_theme.Border))
         using (var path = RoundedRect(new RectangleF(0.5f, 0.5f, w - 1, h - 1), h * 0.22f))
             g.DrawPath(border, path);
 
@@ -233,7 +209,7 @@ internal sealed class StatusBarForm : Form
 
             if (!lit)
             {
-                using var off = new SolidBrush(Palette.LightOff);
+                using var off = new SolidBrush(_theme.LightOff);
                 g.FillEllipse(off, cx, y, d, d);
                 continue;
             }
@@ -242,12 +218,10 @@ internal sealed class StatusBarForm : Form
             var intensity = live ? 1f : 0.45f;
             if (_pulse.Enabled) intensity *= 0.7f + 0.3f * (float)Math.Sin(_pulsePhase);
 
-            var shown = Palette.Dim(color, Math.Clamp(intensity, 0.25f, 1f));
-
             using (var glow = new SolidBrush(Color.FromArgb(live ? 55 : 25, color)))
                 g.FillEllipse(glow, cx - d * 0.35f, y - d * 0.35f, d * 1.7f, d * 1.7f);
 
-            using var brush = new SolidBrush(shown);
+            using var brush = new SolidBrush(_theme.Fade(color, Math.Clamp(intensity, 0.25f, 1f)));
             g.FillEllipse(brush, cx, y, d, d);
         }
     }
@@ -259,8 +233,8 @@ internal sealed class StatusBarForm : Form
         var label = _snapshot.StateLabel;
         var secondary = SecondaryText(_snapshot);
 
-        using var primary = new SolidBrush(_snapshot.LiveSession ? Palette.Text : Palette.TextDim);
-        using var dim = new SolidBrush(Palette.TextDim);
+        using var primary = new SolidBrush(_snapshot.LiveSession ? _theme.Text : _theme.TextDim);
+        using var dim = new SolidBrush(_theme.TextDim);
         using var format = new StringFormat(StringFormatFlags.NoWrap)
         {
             LineAlignment = StringAlignment.Center,
@@ -279,12 +253,12 @@ internal sealed class StatusBarForm : Form
 
     private void DrawUsageRing(Graphics g, RectangleF rect, float thickness)
     {
-        using (var track = new Pen(Palette.Track, thickness))
+        using (var track = new Pen(_theme.Track, thickness))
             g.DrawEllipse(track, rect);
 
         if (_snapshot.SessionUsage is not { } percent)
         {
-            using var unknown = new SolidBrush(Palette.TextDim);
+            using var unknown = new SolidBrush(_theme.TextDim);
             using var fmt = Centered();
             g.DrawString("–", _fontRing, unknown, rect, fmt);
             return;
@@ -293,8 +267,8 @@ internal sealed class StatusBarForm : Form
         var stale = _snapshot.UsageSampledUtc is { } at
             && DateTime.UtcNow - at > TimeSpan.FromMinutes(20);
 
-        var color = Palette.ForUsage(percent);
-        if (stale) color = Palette.Dim(color, 0.55f);
+        var color = _theme.ForUsage(percent);
+        if (stale) color = _theme.Fade(color, 0.55f);
 
         if (percent > 0)
         {
@@ -306,7 +280,7 @@ internal sealed class StatusBarForm : Form
             g.DrawArc(pen, rect, -90f, 360f * Math.Clamp(percent, 0, 100) / 100f);
         }
 
-        using var text = new SolidBrush(stale ? Palette.TextDim : Palette.Text);
+        using var text = new SolidBrush(stale ? _theme.TextDim : _theme.Text);
         using var format = Centered();
         g.DrawString(
             percent >= 100 ? "100" : percent.ToString(),
@@ -380,6 +354,12 @@ internal sealed class StatusBarForm : Form
         if (x != Location.X || y != Location.Y) Location = new Point(x, y);
     }
 
+    private void MoveToCorner()
+    {
+        var area = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1280, 720);
+        Location = new Point(area.Right - Width - ScreenMargin, area.Top + ScreenMargin);
+    }
+
     private void SavePosition()
     {
         _settings.X = Location.X;
@@ -387,20 +367,43 @@ internal sealed class StatusBarForm : Form
         _settings.Save();
     }
 
-    private void MoveToCorner()
-    {
-        var area = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1280, 720);
-        Location = new Point(area.Right - Width - ScreenMargin, area.Top + ScreenMargin);
-    }
-
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
         if (e.Button != MouseButtons.Left) return;
 
-        // Arrasta a barra inteira como se fosse a barra de título.
+        _pressed = true;
+        _pressOrigin = e.Location;
+    }
+
+    /// <summary>
+    /// O arrasto só começa depois que o mouse anda um pouco. Disparar no clique jogaria a
+    /// janela num laço modal de movimentação, e o segundo clique do duplo clique se perderia.
+    /// </summary>
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        if (!_pressed) return;
+
+        var drag = SystemInformation.DragSize;
+        if (Math.Abs(e.X - _pressOrigin.X) < drag.Width
+            && Math.Abs(e.Y - _pressOrigin.Y) < drag.Height) return;
+
+        _pressed = false;
         Native.ReleaseCapture();
         Native.SendMessage(Handle, Native.WM_NCLBUTTONDOWN, Native.HTCAPTION, IntPtr.Zero);
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        base.OnMouseUp(e);
+        _pressed = false;
+    }
+
+    protected override void OnMouseDoubleClick(MouseEventArgs e)
+    {
+        base.OnMouseDoubleClick(e);
+        if (e.Button == MouseButtons.Left) ClaudeWindow.Activate();
     }
 
     protected override void WndProc(ref Message m)
@@ -434,7 +437,19 @@ internal sealed class StatusBarForm : Form
         };
         _autoStartItem.CheckedChanged += (_, _) => AppSettings.SetAutoStart(_autoStartItem.Checked);
 
+        var colors = new ToolStripMenuItem("Cor");
+        foreach (var theme in Theme.All)
+        {
+            var item = new ToolStripMenuItem(theme.Label) { Checked = theme.Id == _theme.Id };
+            item.Click += (_, _) => ApplyTheme(theme);
+            _themeItems.Add(item);
+            colors.DropDownItems.Add(item);
+        }
+
         var menu = new ContextMenuStrip();
+        menu.Items.Add("Abrir o Claude", null, (_, _) => ClaudeWindow.Activate());
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(colors);
         menu.Items.Add(_topMostItem);
         menu.Items.Add(_autoStartItem);
         menu.Items.Add(new ToolStripSeparator());
@@ -459,13 +474,25 @@ internal sealed class StatusBarForm : Form
         };
     }
 
+    private void ApplyTheme(Theme theme)
+    {
+        _theme = theme;
+        _settings.Theme = theme.Id;
+        _settings.Save();
+
+        foreach (var item in _themeItems) item.Checked = item.Text == theme.Label;
+
+        BackColor = theme.Background;
+        UpdateTrayIcon(_snapshot);
+        Invalidate();
+    }
+
     private void UpdateTrayIcon(StatusSnapshot s)
     {
         var color = ColorOf(s.State);
-        if (!s.LiveSession) color = Palette.Dim(color, 0.5f);
 
         var old = _tray.Icon;
-        _tray.Icon = MakeDotIcon(color);
+        _tray.Icon = MakeDotIcon(color, s.LiveSession ? 255 : 120);
         _tray.Text = Truncate($"Claude: {s.StateLabel}"
             + (s.SessionUsage is { } fh ? $" · {fh}% da sessão" : ""), 63);
 
@@ -475,14 +502,16 @@ internal sealed class StatusBarForm : Form
     private static string Truncate(string text, int max) =>
         text.Length <= max ? text : text[..max];
 
-    private static Icon MakeDotIcon(Color color)
+    private static Icon MakeDotIcon(Color color, int alpha)
     {
         using var bmp = new Bitmap(16, 16);
         using (var g = Graphics.FromImage(bmp))
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.Clear(Color.Transparent);
-            using var brush = new SolidBrush(color);
+
+            // Transparência em vez de mistura com o fundo: a bandeja pode ser clara ou escura.
+            using var brush = new SolidBrush(Color.FromArgb(alpha, color));
             g.FillEllipse(brush, 2, 2, 12, 12);
         }
 
@@ -497,6 +526,41 @@ internal sealed class StatusBarForm : Form
         {
             Native.DestroyIcon(handle);
         }
+    }
+
+    // ---- demonstração ----------------------------------------------------
+
+    private void StartDemo()
+    {
+        StatusSnapshot[] samples =
+        [
+            new()
+            {
+                State = ActivityState.Working, LiveSession = true, ActiveSessions = 2,
+                ProjectName = "civilcalc", SessionUsage = 48, WeeklyUsage = 50,
+                UsageSampledUtc = DateTime.UtcNow,
+            },
+            new()
+            {
+                State = ActivityState.Done, LiveSession = true, ActiveSessions = 1,
+                ProjectName = "civilcalc", SessionUsage = 72, WeeklyUsage = 50,
+                UsageSampledUtc = DateTime.UtcNow,
+            },
+            new()
+            {
+                State = ActivityState.Blocked, LiveSession = true, ActiveSessions = 1,
+                ProjectName = "civilcalc", SessionUsage = 100, WeeklyUsage = 61,
+                UsageSampledUtc = DateTime.UtcNow,
+                BlockedMessage = "You've hit your session limit · resets 11:50pm (America/Sao_Paulo)",
+            },
+            new() { State = ActivityState.Done, SessionUsage = 12, WeeklyUsage = 50, UsageSampledUtc = DateTime.UtcNow },
+        ];
+
+        var index = 0;
+        _demo = new Timer { Interval = 2500 };
+        _demo.Tick += (_, _) => OnStatus(samples[++index % samples.Length]);
+        _demo.Start();
+        OnStatus(samples[0]);
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
