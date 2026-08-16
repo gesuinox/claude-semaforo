@@ -3,15 +3,17 @@
 Barra fina para Windows que fica sempre visível mostrando o que o Claude Code está
 fazendo agora e quanto da janela de uso já foi gasta.
 
+A barra tem 94 × 30 px e nenhum texto além do número do uso:
+
 ```
-●○○  Bloqueado   · resets 11:50pm    (100)   ← limite atingido
-○●○  Trabalhando · civilcalc         ( 48)   ← turno em andamento (a luz pulsa)
-○○●  Concluído   · civilcalc         ( 72)   ← o turno terminou
+●○○  (100)   ← vermelho: limite atingido
+○●○  ( 48)   ← amarelo: turno em andamento (o halo pulsa)
+○○●  ( 72)   ← verde: o turno terminou
 ```
 
 O anel da direita é o **uso da janela de 5 horas** — o mesmo número que o `/usage`
-mostra. Passe o mouse sobre a barra para ver o uso semanal, quantas sessões estão
-rodando e quando a medida foi feita.
+mostra. Passe o mouse sobre a barra para ver o estado por extenso, o projeto, o uso
+semanal, quantas sessões estão rodando e quando a medida foi feita.
 
 ## De onde vêm os dados
 
@@ -46,22 +48,33 @@ e só quando a data de modificação muda.
 - **Botão direito** (ou o ícone na bandeja) abre o menu: abrir o Claude, cor, sempre no
   topo, iniciar com o Windows, levar para o canto, atualizar agora e sair.
 
-O nome ao lado do estado é a **pasta do projeto**. O apelido que o Claude Code dá à
-sessão — `civilcalc-4f`, a pasta mais um sufixo que separa sessões simultâneas — fica no
-tooltip, junto do uso semanal e de quantas sessões estão rodando.
+Tudo o que é texto vive no tooltip: o estado por extenso, a pasta do projeto, o apelido
+que o Claude Code dá à sessão (`civilcalc-4f` — a pasta mais um sufixo que separa sessões
+simultâneas), o uso semanal e a idade da medida.
 
 Preferências e posição ficam em `%APPDATA%\ClaudeSemaforo\settings.json`.
 
 ### Cores
 
-| Tema | Aparência |
+As três luzes têm tom fixo em qualquer tema — num semáforo a cor é o significado:
+
+| Luz | Cor | Estado |
+|---|---|---|
+| Vermelho | `#D30000` | parado por limite |
+| Amarelo | `#FFED29` | trabalhando |
+| Verde | `#CEFF00` | concluído |
+
+O tema muda o fundo, a borda e a trilha do anel:
+
+| Tema | Fundo |
 |---|---|
-| **Claude (laranja)** | Creme e laranja da marca; "trabalhando" acende no próprio laranja |
-| **Escuro** | Grafite neutro (padrão) |
+| **Claude (laranja)** | `#D97757`, o laranja da marca — é a cor chapada da tela de abertura do app |
+| **Escuro** | `#16161A`, grafite neutro (padrão) |
 | **Claro** | Branco com hairline cinza |
 
-As três luzes continuam vermelho/amarelo/verde em qualquer tema — num semáforo a cor é o
-significado —, mas os tons mudam para funcionar sobre fundo claro ou escuro.
+O anel de uso segue a mesma escala verde → amarelo → vermelho, mas por ser um traço de
+poucos pixels ele é escurecido quando o fundo é claro; senão o amarelo e o verde-limão
+sumiriam no branco. Em fundo escuro as cores ficam intactas.
 
 ## Compilar
 

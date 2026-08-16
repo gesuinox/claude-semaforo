@@ -11,7 +11,7 @@ namespace ClaudeSemaforo.Ui;
 /// </summary>
 internal sealed class StatusBarForm : Form
 {
-    private const int BaseWidth = 236;
+    private const int BaseWidth = 94;
     private const int BaseHeight = 30;
     private const int ScreenMargin = 12;
 
@@ -22,8 +22,6 @@ internal sealed class StatusBarForm : Form
     // Só anima quando está trabalhando; parado, a barra não consome CPU à toa.
     private readonly Timer _pulse = new() { Interval = 60 };
 
-    private readonly Font _fontLabel = new("Segoe UI", 8.25f);
-    private readonly Font _fontSecondary = new("Segoe UI", 7.5f);
     private readonly Font _fontRing = new("Segoe UI Semibold", 7.5f);
     private readonly Font _fontRingSmall = new("Segoe UI Semibold", 6.5f);
 
@@ -102,9 +100,9 @@ internal sealed class StatusBarForm : Form
 
     private Color ColorOf(ActivityState state) => state switch
     {
-        ActivityState.Blocked => _theme.Red,
-        ActivityState.Working => _theme.Amber,
-        ActivityState.Done => _theme.Green,
+        ActivityState.Blocked => Theme.LightRed,
+        ActivityState.Working => Theme.LightAmber,
+        ActivityState.Done => Theme.LightGreen,
         _ => _theme.LightOff,
     };
 
@@ -147,24 +145,6 @@ internal sealed class StatusBarForm : Form
     private static string FormatAge(TimeSpan age) =>
         age.TotalHours >= 1 ? $"{(int)age.TotalHours} h" : $"{(int)age.TotalMinutes} min";
 
-    /// <summary>Depois do estado, o mais útil: a hora do reset quando bloqueado, o projeto quando não.</summary>
-    private static string? SecondaryText(StatusSnapshot s)
-    {
-        if (s.State == ActivityState.Blocked && s.BlockedMessage is { } msg)
-        {
-            var at = msg.IndexOf("resets", StringComparison.OrdinalIgnoreCase);
-            if (at >= 0)
-            {
-                var reset = msg[at..];
-                var paren = reset.IndexOf(" (", StringComparison.Ordinal);
-                if (paren > 0) reset = reset[..paren];
-                return reset.Trim();
-            }
-        }
-
-        return s.ProjectName;
-    }
-
     // ---- desenho ---------------------------------------------------------
 
     protected override void OnPaint(PaintEventArgs e)
@@ -185,11 +165,9 @@ internal sealed class StatusBarForm : Form
 
         DrawTrafficLight(g, pad, (h - lightD) / 2f, lightD, gap);
 
+        // O anel fica encostado na direita; a folga que sobra separa o uso dos sinaleiros.
         var ringX = w - pad - ringD;
         DrawUsageRing(g, new RectangleF(ringX, (h - ringD) / 2f, ringD, ringD), Math.Max(2f, h * 0.10f));
-
-        var textX = pad + 3 * lightD + 2 * gap + gap * 1.4f;
-        DrawLabel(g, new RectangleF(textX, 0, ringX - gap - textX, h));
     }
 
     private void DrawTrafficLight(Graphics g, float x, float y, float d, float gap)
@@ -214,41 +192,22 @@ internal sealed class StatusBarForm : Form
                 continue;
             }
 
-            // Sem processo vivo, a luz fica acesa mas fraca: é memória do último turno.
-            var intensity = live ? 1f : 0.45f;
-            if (_pulse.Enabled) intensity *= 0.7f + 0.3f * (float)Math.Sin(_pulsePhase);
+            // Quem pulsa é o halo, não o disco: assim a luz mantém o tom exato do semáforo.
+            var glowAlpha = live ? 55 : 25;
+            if (_pulse.Enabled)
+                glowAlpha = (int)(26 + 52 * (0.5f + 0.5f * (float)Math.Sin(_pulsePhase)));
 
-            using (var glow = new SolidBrush(Color.FromArgb(live ? 55 : 25, color)))
+            using (var glow = new SolidBrush(Color.FromArgb(glowAlpha, color)))
                 g.FillEllipse(glow, cx - d * 0.35f, y - d * 0.35f, d * 1.7f, d * 1.7f);
 
-            using var brush = new SolidBrush(_theme.Fade(color, Math.Clamp(intensity, 0.25f, 1f)));
-            g.FillEllipse(brush, cx, y, d, d);
+            // Sem processo vivo, a luz fica acesa mas fraca: é memória do último turno.
+            using (var brush = new SolidBrush(live ? color : _theme.Fade(color, 0.45f)))
+                g.FillEllipse(brush, cx, y, d, d);
+
+            // Aro fino: sem ele o amarelo e o verde-limão se perdem no fundo branco.
+            using var rim = new Pen(_theme.Border);
+            g.DrawEllipse(rim, cx, y, d, d);
         }
-    }
-
-    private void DrawLabel(Graphics g, RectangleF area)
-    {
-        if (area.Width <= 4) return;
-
-        var label = _snapshot.StateLabel;
-        var secondary = SecondaryText(_snapshot);
-
-        using var primary = new SolidBrush(_snapshot.LiveSession ? _theme.Text : _theme.TextDim);
-        using var dim = new SolidBrush(_theme.TextDim);
-        using var format = new StringFormat(StringFormatFlags.NoWrap)
-        {
-            LineAlignment = StringAlignment.Center,
-            Trimming = StringTrimming.EllipsisCharacter,
-        };
-
-        var labelWidth = g.MeasureString(label, _fontLabel).Width;
-        g.DrawString(label, _fontLabel, primary, area, format);
-
-        if (secondary is null) return;
-
-        var rest = new RectangleF(
-            area.X + labelWidth, area.Y, area.Width - labelWidth, area.Height);
-        if (rest.Width > 10) g.DrawString("· " + secondary, _fontSecondary, dim, rest, format);
     }
 
     private void DrawUsageRing(Graphics g, RectangleF rect, float thickness)
@@ -578,8 +537,6 @@ internal sealed class StatusBarForm : Form
             _demo?.Dispose();
             _pulse.Dispose();
             _tip.Dispose();
-            _fontLabel.Dispose();
-            _fontSecondary.Dispose();
             _fontRing.Dispose();
             _fontRingSmall.Dispose();
             _tray.Icon?.Dispose();
