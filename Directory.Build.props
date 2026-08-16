@@ -1,0 +1,16 @@
+<Project>
+
+  <!--
+    O repositório fica no Google Drive (G:\Meu Drive), que mantém os arquivos mapeados e faz
+    o CreateAppHost falhar com "seção mapeada pelo usuário aberta" ao gravar o .exe — além de
+    deixar a compilação lenta. Por isso obj/ e bin/ vão para um caminho local.
+    O executável sai em %LOCALAPPDATA%\ClaudeSemaforo-build\bin\ClaudeSemaforo\Release\net10.0-windows\.
+  -->
+  <PropertyGroup>
+    <BuildRoot>$(LOCALAPPDATA)\ClaudeSemaforo-build</BuildRoot>
+    <BaseIntermediateOutputPath>$(BuildRoot)\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+    <BaseOutputPath>$(BuildRoot)\bin\$(MSBuildProjectName)\</BaseOutputPath>
+  </PropertyGroup>
+
+</Project>
