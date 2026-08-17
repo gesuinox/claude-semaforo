@@ -188,10 +188,15 @@ public sealed class StatusMonitor : IDisposable
         };
     }
 
+    /// <summary>
+    /// Esperando o usuário vem antes de tudo, inclusive do limite atingido: com várias
+    /// sessões abertas, a que precisa de uma confirmação é a única em que ele pode agir,
+    /// e é a que trava o trabalho enquanto ninguém responde.
+    /// </summary>
     private static int Severity(ActivityState state) => state switch
     {
-        ActivityState.Blocked => 4,
-        ActivityState.Waiting => 3,
+        ActivityState.Waiting => 4,
+        ActivityState.Blocked => 3,
         ActivityState.Working => 2,
         ActivityState.Done => 1,
         _ => 0,

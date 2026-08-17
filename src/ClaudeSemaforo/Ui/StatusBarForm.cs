@@ -104,8 +104,8 @@ internal sealed class StatusBarForm : Form
 
     private Color ColorOf(ActivityState state) => state switch
     {
-        ActivityState.Blocked or ActivityState.Waiting => Theme.LightRed,
-        ActivityState.Working => Theme.LightAmber,
+        ActivityState.Blocked => Theme.LightRed,
+        ActivityState.Working or ActivityState.Waiting => Theme.LightAmber,
         ActivityState.Done => Theme.LightGreen,
         _ => _theme.LightOff,
     };
@@ -200,8 +200,9 @@ internal sealed class StatusBarForm : Form
         var live = _snapshot.LiveSession;
         var waiting = active == ActivityState.Waiting;
 
-        // Esperando o usuário acende a mesma luz do bloqueio, mas piscando.
-        var litState = waiting ? ActivityState.Blocked : active;
+        // Esperando o usuário acende a luz amarela, como trabalhando, mas piscando:
+        // o vermelho fica reservado ao limite atingido, que não depende dele.
+        var litState = waiting ? ActivityState.Working : active;
 
         // Ordem de semáforo de rua: vermelho, amarelo, verde.
         ReadOnlySpan<ActivityState> order =

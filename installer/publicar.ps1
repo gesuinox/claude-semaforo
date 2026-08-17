@@ -27,6 +27,18 @@ if (-not $iscc) {
     throw "Inno Setup 6 nao encontrado. Instale com: winget install JRSoftware.InnoSetup"
 }
 
+# As duas versoes precisam bater, senao o instalador diz uma coisa e o executavel
+# instalado responde outra — ja aconteceu de a barra continuar na versao anterior.
+$versaoProjeto = ([xml](Get-Content $projeto)).Project.PropertyGroup.Version | Where-Object { $_ }
+$versaoSetup = (Select-String -Path (Join-Path $PSScriptRoot 'ClaudeSemaforo.iss') `
+    -Pattern '#define AppVersion "([^"]+)"').Matches[0].Groups[1].Value
+
+if ($versaoProjeto -ne $versaoSetup) {
+    throw "versao divergente: csproj=$versaoProjeto, iss=$versaoSetup"
+}
+
+Write-Host "==> Versao $versaoProjeto"
+
 # O single-file sai sem compressao de proposito: comprimido duas vezes o instalador
 # fica em 42 MB, e deixando o LZMA2 do Inno trabalhar sozinho cai para 33 MB.
 Write-Host '==> Publicando (self-contained, arquivo unico)...'

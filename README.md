@@ -6,10 +6,10 @@ fazendo agora e quanto da janela de uso já foi gasta.
 A barra tem 94 × 30 px e nenhum texto além do número do uso:
 
 ```
-●○○  (100)   ← vermelho fixo: limite atingido
-◐○○  ( 83)   ← vermelho piscando: o Claude espera você (autorização ou resposta)
-○●○  ( 48)   ← amarelo: turno em andamento (o halo pulsa)
+○◐○  ( 83)   ← amarelo piscando: o Claude espera você (autorização ou resposta)
+○●○  ( 48)   ← amarelo aceso: turno em andamento (o halo pulsa)
 ○○●  ( 72)   ← verde: o turno terminou
+●○○  (100)   ← vermelho: limite atingido
 ```
 
 O anel da direita é o **uso da janela de 5 horas** — o mesmo número que o `/usage`
@@ -111,20 +111,30 @@ de você responder quanto o de o turno terminar:
   "hooks": {
     "Notification": [
       { "hooks": [ { "type": "command",
-                     "command": "C:\\Users\\SEU-USUARIO\\AppData\\Local\\Programs\\Claude Semaforo\\ClaudeSemaforo.exe",
-                     "args": ["--hook"], "async": true, "timeout": 5 } ] }
+                     "command": "\"C:\\Users\\SEU-USUARIO\\AppData\\Local\\Programs\\Claude Semaforo\\ClaudeSemaforo.exe\" --hook",
+                     "async": true, "timeout": 5 } ] }
     ],
-    "Stop":             [ { "hooks": [ { "type": "command", "command": "…\\ClaudeSemaforo.exe", "args": ["--hook"], "async": true, "timeout": 5 } ] } ],
-    "UserPromptSubmit": [ { "hooks": [ { "type": "command", "command": "…\\ClaudeSemaforo.exe", "args": ["--hook"], "async": true, "timeout": 5 } ] } ]
+    "Stop":             [ { "hooks": [ { "type": "command", "command": "\"…\\ClaudeSemaforo.exe\" --hook", "async": true, "timeout": 5 } ] } ],
+    "UserPromptSubmit": [ { "hooks": [ { "type": "command", "command": "\"…\\ClaudeSemaforo.exe\" --hook", "async": true, "timeout": 5 } ] } ]
   }
 }
 ```
+
+> O comando vai inteiro numa string só (com o caminho entre aspas). A forma
+> `"command"` + `"args": ["--hook"]`, que a documentação descreve, **não é executada** —
+> conferido nesta versão do Claude Code com dois hooks lado a lado: o da string única
+> rodou, o de `args` não. Com `args`, o executável sobe sem `--hook`, tenta abrir a barra,
+> esbarra no mutex de instância única e sai sem gravar nada — o alerta nunca acende.
 
 Os hooks não levam `matcher`: quem decide é o executável, que lê o `notification_type` do
 stdin. Levantam alerta `permission_prompt`, `idle_prompt`, `elicitation_dialog` e
 `agent_needs_input`; os demais tipos (`auth_success`, `agent_completed`,
 `elicitation_complete`) baixam. Se um hook de limpeza falhar, o alerta expira sozinho em
 3 horas.
+
+Com várias sessões abertas, **a que espera por você prevalece** sobre qualquer outra —
+inclusive sobre uma que tenha batido no limite. É a única em que você pode agir, e é a que
+fica parada até alguém responder.
 
 Sem os hooks registrados o alerta simplesmente nunca acende — e o tooltip avisa disso.
 
