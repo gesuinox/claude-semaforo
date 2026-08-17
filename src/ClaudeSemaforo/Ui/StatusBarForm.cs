@@ -33,8 +33,6 @@ internal sealed class StatusBarForm : Form
     private readonly List<ToolStripMenuItem> _themeItems = [];
 
     private Theme _theme;
-    private Color? _trayColor;
-    private int _trayAlpha;
     private StatusSnapshot _snapshot = new();
     private float _pulsePhase;
     private bool _pressed;
@@ -100,7 +98,7 @@ internal sealed class StatusBarForm : Form
         else if (!animated && _pulse.Enabled) { _pulse.Stop(); _pulsePhase = 0; }
 
         _tip.SetToolTip(this, BuildTooltip(snapshot));
-        UpdateTrayIcon(snapshot);
+        UpdateTrayText(snapshot);
         Invalidate();
     }
 
@@ -463,13 +461,14 @@ internal sealed class StatusBarForm : Form
 
         ContextMenuStrip = menu;
 
-        // O ícone da bandeja é repintado a cada mudança de estado; este é só o inicial.
+        Icon = LoadAppIcon(SystemInformation.IconSize);
+
         _tray = new NotifyIcon
         {
             Text = "Claude Semáforo",
             Visible = true,
             ContextMenuStrip = menu,
-            Icon = SystemIcons.Application,
+            Icon = LoadAppIcon(SystemInformation.SmallIconSize),
         };
         _tray.DoubleClick += (_, _) =>
         {
@@ -503,59 +502,41 @@ internal sealed class StatusBarForm : Form
         foreach (var item in _themeItems) item.Checked = item.Text == theme.Label;
 
         BackColor = theme.Background;
-        UpdateTrayIcon(_snapshot);
         Invalidate();
     }
 
-    private void UpdateTrayIcon(StatusSnapshot s)
-    {
-        var color = ColorOf(s.State);
-        var alpha = s.LiveSession ? 255 : 120;
-
-        // O texto pode mudar a cada tique (a idade da medida avança), mas o ícone só é
-        // refeito quando o desenho muda de verdade: cada troca é uma mensagem ao shell,
-        // e não há motivo para repetir a mesma imagem.
-        if (_trayColor != color || _trayAlpha != alpha)
-        {
-            var old = _tray.Icon;
-            _tray.Icon = MakeDotIcon(color, alpha);
-            _trayColor = color;
-            _trayAlpha = alpha;
-
-            if (old is not null && !ReferenceEquals(old, SystemIcons.Application)) old.Dispose();
-        }
-
+    /// <summary>
+    /// O ícone da bandeja nunca muda — é sempre o do app. Só o texto acompanha o estado.
+    /// Trocar a imagem a cada mudança é o que espalhava cópias na bandeja quando o
+    /// processo era encerrado à força entre uma troca e outra.
+    /// </summary>
+    private void UpdateTrayText(StatusSnapshot s) =>
         _tray.Text = Truncate($"Claude: {s.StateLabel}"
             + (s.SessionUsage is { } fh ? $" · {fh}% da sessão" : ""), 63);
-    }
 
     private static string Truncate(string text, int max) =>
         text.Length <= max ? text : text[..max];
 
-    private static Icon MakeDotIcon(Color color, int alpha)
+    /// <summary>Carrega o app.ico embutido no tamanho que o Windows usa na bandeja.</summary>
+    private static Icon LoadAppIcon(Size size)
     {
-        using var bmp = new Bitmap(16, 16);
-        using (var g = Graphics.FromImage(bmp))
-        {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Color.Transparent);
-
-            // Transparência em vez de mistura com o fundo: a bandeja pode ser clara ou escura.
-            using var brush = new SolidBrush(Color.FromArgb(alpha, color));
-            g.FillEllipse(brush, 2, 2, 12, 12);
-        }
-
-        var handle = bmp.GetHicon();
         try
         {
-            // Clone para poder liberar o HICON sem invalidar o ícone.
-            using var temp = Icon.FromHandle(handle);
-            return (Icon)temp.Clone();
+            var assembly = typeof(StatusBarForm).Assembly;
+            var name = assembly.GetManifestResourceNames()
+                .FirstOrDefault(n => n.EndsWith("app.ico", StringComparison.OrdinalIgnoreCase));
+
+            if (name is not null)
+            {
+                using var stream = assembly.GetManifestResourceStream(name);
+                if (stream is not null) return new Icon(stream, size);
+            }
         }
-        finally
+        catch (Exception e) when (e is IOException or ArgumentException)
         {
-            Native.DestroyIcon(handle);
         }
+
+        return (Icon)SystemIcons.Application.Clone();
     }
 
     // ---- demonstração ----------------------------------------------------
@@ -618,6 +599,7 @@ internal sealed class StatusBarForm : Form
             _fontRingSmall.Dispose();
             _tray.Icon?.Dispose();
             _tray.Dispose();
+            Icon?.Dispose();
         }
 
         base.Dispose(disposing);

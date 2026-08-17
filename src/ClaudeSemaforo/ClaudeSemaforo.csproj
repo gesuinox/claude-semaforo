@@ -9,7 +9,7 @@
     <AssemblyName>ClaudeSemaforo</AssemblyName>
     <RootNamespace>ClaudeSemaforo</RootNamespace>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>1.1.3</Version>
+    <Version>1.2.0</Version>
     <Product>Claude Semáforo</Product>
     <Company>gesuinox</Company>
     <Description>Barra de status do Claude Code para Windows</Description>
@@ -22,5 +22,10 @@
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     <TieredPGO>true</TieredPGO>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Embutido para a bandeja carregar a resolução exata que o Windows pede. -->
+    <EmbeddedResource Include="app.ico" />
+  </ItemGroup>
 
 </Project>
