@@ -130,18 +130,25 @@ internal sealed class StatusBarForm : Form
             _ => $"{s.ActiveSessions} sessões ativas",
         });
 
-        if (s.SessionUsage is { } fh)
+        if (s.SessionUsage is { } fh && s.Freshness != UsageFreshness.Missing)
         {
-            lines.Add($"Uso da sessão (5h): {fh}%");
-            if (s.WeeklyUsage is { } sd) lines.Add($"Uso semanal (7d): {sd}%");
+            var idade = s.UsageAge is { } age ? FormatAge(age) : "?";
 
-            if (s.UsageSampledUtc is { } at)
+            lines.Add(s.Freshness switch
             {
-                var age = DateTime.UtcNow - at;
-                lines.Add(age.TotalMinutes < 20
-                    ? $"Medido há {Math.Max(0, (int)age.TotalMinutes)} min"
-                    : $"Desatualizado há {FormatAge(age)} — o Claude Desktop precisa estar aberto");
-            }
+                UsageFreshness.Fresh => $"Uso da sessão (5h): {fh}% · medido há {idade}",
+                UsageFreshness.Stale => $"Uso da sessão (5h): pelo menos {fh}% · medido há {idade}",
+                _ => $"Uso da sessão (5h): sem medida válida · a última é de {idade} atrás",
+            });
+
+            if (s.WeeklyUsage is { } sd)
+                lines.Add(s.Freshness == UsageFreshness.Fresh
+                    ? $"Uso semanal (7d): {sd}%"
+                    : $"Uso semanal (7d): pelo menos {sd}%");
+
+            if (s.Freshness != UsageFreshness.Fresh)
+                lines.Add("O Claude só grava o histórico de uso de tempos em tempos —"
+                    + " veja o número exato com /usage");
         }
         else
         {
@@ -232,7 +239,12 @@ internal sealed class StatusBarForm : Form
         using (var track = new Pen(_theme.Track, thickness))
             g.DrawEllipse(track, rect);
 
-        if (_snapshot.SessionUsage is not { } percent)
+        var freshness = _snapshot.Freshness;
+
+        // Sem amostra, ou com uma mais velha que a própria janela de 5 h: não há número
+        // honesto a mostrar, então o anel fica vazio em vez de exibir um valor obsoleto.
+        if (_snapshot.SessionUsage is not { } percent
+            || freshness is UsageFreshness.Missing or UsageFreshness.Expired)
         {
             using var unknown = new SolidBrush(_theme.TextDim);
             using var fmt = Centered();
@@ -240,18 +252,17 @@ internal sealed class StatusBarForm : Form
             return;
         }
 
-        var stale = _snapshot.UsageSampledUtc is { } at
-            && DateTime.UtcNow - at > TimeSpan.FromMinutes(20);
-
-        var color = _theme.ForUsage(percent);
-        if (stale) color = _theme.Fade(color, 0.55f);
+        var stale = freshness == UsageFreshness.Stale;
+        var color = stale ? _theme.Fade(_theme.ForUsage(percent), 0.55f) : _theme.ForUsage(percent);
 
         if (percent > 0)
         {
+            // Arco pontilhado quando a medida está velha: o número é um piso, não o valor de agora.
             using var pen = new Pen(color, thickness)
             {
                 StartCap = LineCap.Round,
                 EndCap = LineCap.Round,
+                DashStyle = stale ? DashStyle.Dot : DashStyle.Solid,
             };
             g.DrawArc(pen, rect, -90f, 360f * Math.Clamp(percent, 0, 100) / 100f);
         }

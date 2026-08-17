@@ -21,6 +21,20 @@ public enum ActivityState
     Blocked,
 }
 
+public enum UsageFreshness
+{
+    /// <summary>Nunca houve amostra: o Claude Desktop não gravou o histórico.</summary>
+    Missing,
+
+    Fresh,
+
+    /// <summary>Velha o bastante para o número já ter subido sem a barra saber.</summary>
+    Stale,
+
+    /// <summary>Mais velha que a própria janela de 5 horas: não diz mais nada.</summary>
+    Expired,
+}
+
 public sealed record StatusSnapshot
 {
     public ActivityState State { get; init; } = ActivityState.Unknown;
@@ -50,8 +64,23 @@ public sealed record StatusSnapshot
     /// <summary>Uso dos 7 dias, 0–100.</summary>
     public int? WeeklyUsage { get; init; }
 
-    /// <summary>Quando o Desktop coletou a amostra — ele só grava enquanto está aberto.</summary>
+    /// <summary>Quando o Claude coletou a amostra. A gravação é irregular: pode ficar horas parada.</summary>
     public DateTime? UsageSampledUtc { get; init; }
+
+    public TimeSpan? UsageAge =>
+        UsageSampledUtc is { } at ? DateTime.UtcNow - at : null;
+
+    /// <summary>
+    /// Passadas 5 horas a janela de uso já virou e o número não descreve mais nada; antes
+    /// disso ele ainda serve como piso, mas precisa aparecer como velho.
+    /// </summary>
+    public UsageFreshness Freshness => UsageAge switch
+    {
+        null => UsageFreshness.Missing,
+        { TotalHours: >= 5 } => UsageFreshness.Expired,
+        { TotalMinutes: >= 20 } => UsageFreshness.Stale,
+        _ => UsageFreshness.Fresh,
+    };
 
     /// <summary>O <c>notification_type</c> que levantou o alerta, quando há um.</summary>
     public string? WaitingKind { get; init; }

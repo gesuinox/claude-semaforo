@@ -34,9 +34,20 @@ e só quando a data de modificação muda.
 
 ## Limitações conhecidas
 
-- **O anel congela com o Claude Desktop fechado.** Quem grava `plan-usage-history.json`
-  é o app do Claude, a cada poucos minutos. Com ele fechado o número para no tempo — a
-  barra apaga o anel e o tooltip avisa há quanto tempo a medida está velha.
+- **O anel depende de uma medida que o Claude grava quando quer.** Quem escreve o
+  `plan-usage-history.json` é o app do Claude, consultando `/api/organizations/<org>/usage`
+  a cada ~15 min. Essa consulta falha (503) ou simplesmente para com alguma frequência —
+  observei o histórico ficar 3 horas parado com o app aberto e em uso. Por isso a barra
+  nunca finge que o número é de agora:
+
+  | Idade da medida | O que a barra faz |
+  |---|---|
+  | até 20 min | anel sólido, número normal |
+  | 20 min a 5 h | anel **pontilhado**, número esmaecido, tooltip diz "pelo menos X%" |
+  | mais de 5 h | anel vazio com `–`: a janela de 5 h já virou e o número não diz mais nada |
+
+  Para o valor exato do momento, o `/usage` dentro do Claude é a fonte — e rodá-lo
+  costuma provocar uma nova gravação, que a barra pega em até 20 s.
 - **Não dá para embutir o widget na barra de tarefas do Windows.** A API de DeskBand foi
   descontinuada pela Microsoft. A barra é uma janela sem borda sempre no topo, que se
   arrasta com o mouse e gruda onde você largar.
