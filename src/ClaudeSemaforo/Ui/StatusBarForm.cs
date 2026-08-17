@@ -33,6 +33,8 @@ internal sealed class StatusBarForm : Form
     private readonly List<ToolStripMenuItem> _themeItems = [];
 
     private Theme _theme;
+    private Color? _trayColor;
+    private int _trayAlpha;
     private StatusSnapshot _snapshot = new();
     private float _pulsePhase;
     private bool _pressed;
@@ -474,6 +476,22 @@ internal sealed class StatusBarForm : Form
             Visible = !Visible;
             if (Visible) BringToFront();
         };
+
+        // Sem isso, uma saída que não passe pelo fechamento da janela deixa o ícone
+        // órfão na bandeja — ele só some quando o usuário passa o mouse por cima.
+        Application.ApplicationExit += RemoveTrayIcon;
+        AppDomain.CurrentDomain.ProcessExit += RemoveTrayIcon;
+    }
+
+    private void RemoveTrayIcon(object? sender, EventArgs e)
+    {
+        try
+        {
+            _tray.Visible = false;
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 
     private void ApplyTheme(Theme theme)
@@ -492,13 +510,23 @@ internal sealed class StatusBarForm : Form
     private void UpdateTrayIcon(StatusSnapshot s)
     {
         var color = ColorOf(s.State);
+        var alpha = s.LiveSession ? 255 : 120;
 
-        var old = _tray.Icon;
-        _tray.Icon = MakeDotIcon(color, s.LiveSession ? 255 : 120);
+        // O texto pode mudar a cada tique (a idade da medida avança), mas o ícone só é
+        // refeito quando o desenho muda de verdade: cada troca é uma mensagem ao shell,
+        // e não há motivo para repetir a mesma imagem.
+        if (_trayColor != color || _trayAlpha != alpha)
+        {
+            var old = _tray.Icon;
+            _tray.Icon = MakeDotIcon(color, alpha);
+            _trayColor = color;
+            _trayAlpha = alpha;
+
+            if (old is not null && !ReferenceEquals(old, SystemIcons.Application)) old.Dispose();
+        }
+
         _tray.Text = Truncate($"Claude: {s.StateLabel}"
             + (s.SessionUsage is { } fh ? $" · {fh}% da sessão" : ""), 63);
-
-        if (old is not null && !ReferenceEquals(old, SystemIcons.Application)) old.Dispose();
     }
 
     private static string Truncate(string text, int max) =>

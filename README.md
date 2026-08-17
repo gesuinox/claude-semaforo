@@ -54,6 +54,12 @@ e só quando a data de modificação muda.
   arrasta com o mouse e gruda onde você largar.
 - Quando nenhuma sessão está rodando, a luz continua acesa porém **fraca**: ela mostra
   como terminou a última conversa.
+- **Ícones repetidos na bandeja** são cópias órfãs, deixadas quando o app é encerrado à
+  força (Gerenciador de Tarefas, `Stop-Process`, um build que derruba o processo). Quem
+  remove o ícone é o próprio programa ao sair; morto de repente, ninguém avisa o Windows e
+  a entrada fica lá até você passar o mouse sobre a área — aí o shell confere que a janela
+  não existe mais e limpa. Sair pelo menu, ou qualquer encerramento normal, não deixa
+  rastro.
 
 ## Instalação
 
