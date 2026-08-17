@@ -63,10 +63,13 @@ e só quando a data de modificação muda.
 
 ## Instalação
 
-Baixe o `ClaudeSemaforo-1.0.0-setup.exe` e execute. Ele instala na pasta do usuário,
-**sem pedir senha de administrador**, e oferece as opções de iniciar junto com o Windows e
-criar atalho na área de trabalho. O executável é self-contained: não exige o .NET
-instalado na máquina.
+Baixe o `ClaudeSemaforo-<versão>-setup.exe` e execute. Ele instala na pasta do usuário,
+**sem pedir senha de administrador**, e já vem com as duas opções marcadas: iniciar junto
+com o Windows e criar atalho na área de trabalho — é uma barra de status, feita para estar
+lá quando o Windows abre. Ambas podem ser desmarcadas na tela do instalador, e a de
+iniciar com o Windows também sai e volta pelo menu do próprio app.
+
+O executável é self-contained: não exige o .NET instalado na máquina.
 
 Para gerar o instalador a partir do código (precisa do SDK do .NET 10 e do
 [Inno Setup 6](https://jrsoftware.org/isdl.php)):

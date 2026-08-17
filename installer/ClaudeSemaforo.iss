@@ -2,7 +2,7 @@
 ; Compile pelo installer\publicar.ps1, que gera o publish e passa PublishDir.
 
 #define AppName "Claude Semáforo"
-#define AppVersion "1.2.0"
+#define AppVersion "1.2.1"
 #define AppPublisher "gesuinox"
 #define AppExe "ClaudeSemaforo.exe"
 #define AppUrl "https://github.com/gesuinox/claude-semaforo"
@@ -50,9 +50,10 @@ WizardStyle=modern
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
+; As duas vêm marcadas: é uma barra de status, feita para já estar lá quando o Windows abre.
 [Tasks]
 Name: "startup"; Description: "Iniciar o {#AppName} junto com o Windows"; GroupDescription: "Ao entrar no Windows:"
-Name: "desktopicon"; Description: "Criar um atalho na área de trabalho"; GroupDescription: "Atalhos:"; Flags: unchecked
+Name: "desktopicon"; Description: "Criar um atalho na área de trabalho"; GroupDescription: "Atalhos:"
 
 [Files]
 Source: "{#PublishDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
