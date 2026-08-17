@@ -133,12 +133,13 @@ internal sealed class StatusBarForm : Form
         if (s.SessionUsage is { } fh && s.Freshness != UsageFreshness.Missing)
         {
             var idade = s.UsageAge is { } age ? FormatAge(age) : "?";
+            var quando = s.UsageSampledLocal?.ToString("dd/MM HH:mm") ?? "?";
 
             lines.Add(s.Freshness switch
             {
                 UsageFreshness.Fresh => $"Uso da sessão (5h): {fh}% · medido há {idade}",
-                UsageFreshness.Stale => $"Uso da sessão (5h): pelo menos {fh}% · medido há {idade}",
-                _ => $"Uso da sessão (5h): sem medida válida · a última é de {idade} atrás",
+                UsageFreshness.Stale => $"Uso da sessão (5h): pelo menos {fh}% · medido às {quando}",
+                _ => $"Uso da sessão (5h): sem medida — a última foi às {quando}",
             });
 
             if (s.WeeklyUsage is { } sd)
@@ -146,9 +147,13 @@ internal sealed class StatusBarForm : Form
                     ? $"Uso semanal (7d): {sd}%"
                     : $"Uso semanal (7d): pelo menos {sd}%");
 
-            if (s.Freshness != UsageFreshness.Fresh)
-                lines.Add("O Claude só grava o histórico de uso de tempos em tempos —"
-                    + " veja o número exato com /usage");
+            // Quem mede é o Claude, não esta barra: passado tanto tempo, o que resolve é
+            // reiniciar o app do Claude, e não mexer aqui.
+            if (s.Freshness == UsageFreshness.Expired)
+                lines.Add($"O Claude parou de medir há {idade} — reinicie o app do Claude"
+                    + " para voltar a medir");
+            else if (s.Freshness == UsageFreshness.Stale)
+                lines.Add("O Claude mede de tempos em tempos; o número exato sai no /usage");
         }
         else
         {

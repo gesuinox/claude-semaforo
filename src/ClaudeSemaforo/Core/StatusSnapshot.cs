@@ -67,6 +67,9 @@ public sealed record StatusSnapshot
     /// <summary>Quando o Claude coletou a amostra. A gravação é irregular: pode ficar horas parada.</summary>
     public DateTime? UsageSampledUtc { get; init; }
 
+    /// <summary>A mesma amostra em hora local, que é como o tooltip mostra.</summary>
+    public DateTime? UsageSampledLocal => UsageSampledUtc?.ToLocalTime();
+
     /// <summary>
     /// Idade da amostra em minutos inteiros. É um campo, e não um cálculo na hora da
     /// leitura, porque o snapshot é um record comparado por valor: sem ele o envelhecer da
