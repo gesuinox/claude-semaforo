@@ -21,6 +21,16 @@ public static class HookHandler
         "agent_needs_input",
     };
 
+    /// <summary>
+    /// Eventos que existem só para dizer que o Claude parou e espera alguém. São mais
+    /// diretos que o <c>Notification</c> genérico, que não cobre todos os casos.
+    /// </summary>
+    private static readonly Dictionary<string, string> RaisingEvents = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["PermissionRequest"] = "permission_prompt",
+        ["Elicitation"] = "elicitation_dialog",
+    };
+
     public static int Run()
     {
         string payload;
@@ -57,7 +67,14 @@ public static class HookHandler
                 return 0;
             }
 
-            // Stop e UserPromptSubmit: o turno acabou ou o usuário já respondeu.
+            if (e is not null && RaisingEvents.TryGetValue(e, out var motivo))
+            {
+                AlertStore.Raise(sessionId, motivo);
+                return 0;
+            }
+
+            // Stop, UserPromptSubmit, ElicitationResult, PermissionDenied: o turno acabou
+            // ou o usuário já respondeu.
             AlertStore.Clear(sessionId);
             return 0;
         }

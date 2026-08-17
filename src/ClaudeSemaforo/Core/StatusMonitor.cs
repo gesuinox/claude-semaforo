@@ -115,6 +115,14 @@ public sealed class StatusMonitor : IDisposable
             var read = _transcripts.Read(session);
             var alert = alerts.FirstOrDefault(a => a.SessionId == session.SessionId);
 
+            // Rede de segurança: se a conversa andou depois do alerta, alguém já respondeu.
+            // Sem isso, um hook de limpeza que falhe deixaria a luz piscando à toa.
+            if (alert is not null && read?.TimestampUtc > alert.RaisedUtc)
+            {
+                AlertStore.Clear(alert.SessionId);
+                alert = null;
+            }
+
             // Um alerta pendente supera o que a transcrição diz — ela para no tool_use e
             // parece "trabalhando" justamente enquanto o Claude espera a autorização.
             var sessionState = read?.State == ActivityState.Blocked
