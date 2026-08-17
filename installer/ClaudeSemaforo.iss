@@ -2,7 +2,7 @@
 ; Compile pelo installer\publicar.ps1, que gera o publish e passa PublishDir.
 
 #define AppName "Claude Semáforo"
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.0"
 #define AppPublisher "gesuinox"
 #define AppExe "ClaudeSemaforo.exe"
 #define AppUrl "https://github.com/gesuinox/claude-semaforo"

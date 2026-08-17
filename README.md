@@ -6,7 +6,8 @@ fazendo agora e quanto da janela de uso já foi gasta.
 A barra tem 94 × 30 px e nenhum texto além do número do uso:
 
 ```
-●○○  (100)   ← vermelho: limite atingido
+●○○  (100)   ← vermelho fixo: limite atingido
+◐○○  ( 83)   ← vermelho piscando: o Claude espera você (autorização ou resposta)
 ○●○  ( 48)   ← amarelo: turno em andamento (o halo pulsa)
 ○○●  ( 72)   ← verde: o turno terminou
 ```
@@ -26,6 +27,7 @@ credencial e não escreve nada dentro de `~/.claude`.
 | Sessões rodando | `~/.claude/sessions/<pid>.json` | `pid`, `sessionId` e `cwd`; cada pid é confirmado contra o processo vivo |
 | Estado do turno | `~/.claude/projects/**/<sessionId>.jsonl` | Última entrada: `stop_reason` `tool_use` → trabalhando, `end_turn` → concluído |
 | Bloqueio | o mesmo `.jsonl` | `error: rate_limit` / `apiErrorStatus: 429`, cujo texto traz a hora do reset |
+| Alerta | `%APPDATA%\ClaudeSemaforo\alerts\<sessão>.json` | escrito pelos hooks do Claude Code (veja abaixo) |
 
 As transcrições passam de 40 MB, então só os últimos 96 KB de cada arquivo são lidos,
 e só quando a data de modificação muda.
@@ -69,6 +71,38 @@ que o Claude Code dá à sessão (`civilcalc-4f` — a pasta mais um sufixo que 
 simultâneas), o uso semanal e a idade da medida.
 
 Preferências e posição ficam em `%APPDATA%\ClaudeSemaforo\settings.json`.
+
+### Alerta de "precisa de você"
+
+A transcrição **não** distingue trabalhar de esperar: nos dois casos ela para num
+`tool_use`, porque o Claude fica bloqueado no prompt de autorização sem escrever mais
+nada. Quem sabe a diferença é o próprio Claude Code, pelo evento `Notification`.
+
+Registre estes hooks em `~/.claude/settings.json` (ajuste o caminho se instalou em outro
+lugar). O `Notification` levanta o alerta; os outros dois o baixam, cobrindo tanto o caso
+de você responder quanto o de o turno terminar:
+
+```json
+{
+  "hooks": {
+    "Notification": [
+      { "hooks": [ { "type": "command",
+                     "command": "C:\\Users\\SEU-USUARIO\\AppData\\Local\\Programs\\Claude Semaforo\\ClaudeSemaforo.exe",
+                     "args": ["--hook"], "async": true, "timeout": 5 } ] }
+    ],
+    "Stop":             [ { "hooks": [ { "type": "command", "command": "…\\ClaudeSemaforo.exe", "args": ["--hook"], "async": true, "timeout": 5 } ] } ],
+    "UserPromptSubmit": [ { "hooks": [ { "type": "command", "command": "…\\ClaudeSemaforo.exe", "args": ["--hook"], "async": true, "timeout": 5 } ] } ]
+  }
+}
+```
+
+Os hooks não levam `matcher`: quem decide é o executável, que lê o `notification_type` do
+stdin. Levantam alerta `permission_prompt`, `idle_prompt`, `elicitation_dialog` e
+`agent_needs_input`; os demais tipos (`auth_success`, `agent_completed`,
+`elicitation_complete`) baixam. Se um hook de limpeza falhar, o alerta expira sozinho em
+3 horas.
+
+Sem os hooks registrados o alerta simplesmente nunca acende — e o tooltip avisa disso.
 
 ### Cores
 

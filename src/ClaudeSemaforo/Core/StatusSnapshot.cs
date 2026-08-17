@@ -8,6 +8,12 @@ public enum ActivityState
     /// <summary>Amarelo: há um turno em andamento — ferramenta rodando ou resposta sendo gerada.</summary>
     Working,
 
+    /// <summary>
+    /// Vermelho piscando: o Claude parou e espera o usuário — autorização de ferramenta,
+    /// uma pergunta ou o prompt ocioso. Vem dos hooks, não da transcrição.
+    /// </summary>
+    Waiting,
+
     /// <summary>Verde: o último turno terminou (end_turn).</summary>
     Done,
 
@@ -47,9 +53,22 @@ public sealed record StatusSnapshot
     /// <summary>Quando o Desktop coletou a amostra — ele só grava enquanto está aberto.</summary>
     public DateTime? UsageSampledUtc { get; init; }
 
+    /// <summary>O <c>notification_type</c> que levantou o alerta, quando há um.</summary>
+    public string? WaitingKind { get; init; }
+
+    /// <summary>Falso quando os hooks não estão registrados: aí o alerta nunca acende.</summary>
+    public bool AlertsConfigured { get; init; }
+
     public string StateLabel => State switch
     {
         ActivityState.Working => "Trabalhando",
+        ActivityState.Waiting => WaitingKind switch
+        {
+            "permission_prompt" => "Esperando autorização",
+            "elicitation_dialog" or "agent_needs_input" => "Esperando resposta",
+            "idle_prompt" => "Parado esperando você",
+            _ => "Precisa de você",
+        },
         ActivityState.Done => "Concluído",
         ActivityState.Blocked => "Bloqueado",
         _ => "Sem sessão",

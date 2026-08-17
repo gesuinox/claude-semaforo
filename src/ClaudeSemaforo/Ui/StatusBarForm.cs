@@ -90,9 +90,12 @@ internal sealed class StatusBarForm : Form
     {
         _snapshot = snapshot;
 
-        var working = snapshot.State == ActivityState.Working && snapshot.LiveSession;
-        if (working && !_pulse.Enabled) _pulse.Start();
-        else if (!working && _pulse.Enabled) { _pulse.Stop(); _pulsePhase = 0; }
+        // Só há o que animar trabalhando (halo) ou esperando (piscar).
+        var animated = snapshot.LiveSession
+            && snapshot.State is ActivityState.Working or ActivityState.Waiting;
+
+        if (animated && !_pulse.Enabled) _pulse.Start();
+        else if (!animated && _pulse.Enabled) { _pulse.Stop(); _pulsePhase = 0; }
 
         _tip.SetToolTip(this, BuildTooltip(snapshot));
         UpdateTrayIcon(snapshot);
@@ -101,11 +104,14 @@ internal sealed class StatusBarForm : Form
 
     private Color ColorOf(ActivityState state) => state switch
     {
-        ActivityState.Blocked => Theme.LightRed,
+        ActivityState.Blocked or ActivityState.Waiting => Theme.LightRed,
         ActivityState.Working => Theme.LightAmber,
         ActivityState.Done => Theme.LightGreen,
         _ => _theme.LightOff,
     };
+
+    /// <summary>Meio segundo aceso, meio apagado — pelo relógio, para não depender do timer.</summary>
+    private static bool BlinkOn() => Environment.TickCount64 / 450 % 2 == 0;
 
     private string BuildTooltip(StatusSnapshot s)
     {
@@ -113,6 +119,9 @@ internal sealed class StatusBarForm : Form
 
         if (s.BlockedMessage is not null) lines.Add(s.BlockedMessage);
         if (s.SessionName is not null) lines.Add($"Sessão: {s.SessionName}");
+
+        if (!s.AlertsConfigured)
+            lines.Add("Alerta desligado: os hooks do Claude Code não estão registrados");
 
         lines.Add(s.ActiveSessions switch
         {
@@ -177,6 +186,10 @@ internal sealed class StatusBarForm : Form
     {
         var active = _snapshot.State;
         var live = _snapshot.LiveSession;
+        var waiting = active == ActivityState.Waiting;
+
+        // Esperando o usuário acende a mesma luz do bloqueio, mas piscando.
+        var litState = waiting ? ActivityState.Blocked : active;
 
         // Ordem de semáforo de rua: vermelho, amarelo, verde.
         ReadOnlySpan<ActivityState> order =
@@ -185,7 +198,7 @@ internal sealed class StatusBarForm : Form
         for (var i = 0; i < order.Length; i++)
         {
             var cx = x + i * (d + gap);
-            var lit = order[i] == active;
+            var lit = order[i] == litState && !(waiting && !BlinkOn());
             var color = ColorOf(order[i]);
 
             if (!lit)
@@ -196,8 +209,9 @@ internal sealed class StatusBarForm : Form
             }
 
             // Quem pulsa é o halo, não o disco: assim a luz mantém o tom exato do semáforo.
+            // Esperando, o halo fica firme — quem chama atenção ali é o piscar.
             var glowAlpha = live ? 55 : 25;
-            if (_pulse.Enabled)
+            if (_pulse.Enabled && !waiting)
                 glowAlpha = (int)(26 + 52 * (0.5f + 0.5f * (float)Math.Sin(_pulsePhase)));
 
             using (var glow = new SolidBrush(Color.FromArgb(glowAlpha, color)))
@@ -522,6 +536,12 @@ internal sealed class StatusBarForm : Form
                 State = ActivityState.Done, LiveSession = true, ActiveSessions = 1,
                 ProjectName = "civilcalc", SessionUsage = 72, WeeklyUsage = 50,
                 UsageSampledUtc = DateTime.UtcNow,
+            },
+            new()
+            {
+                State = ActivityState.Waiting, LiveSession = true, ActiveSessions = 1,
+                ProjectName = "civilcalc", SessionUsage = 83, WeeklyUsage = 55,
+                UsageSampledUtc = DateTime.UtcNow, WaitingKind = "permission_prompt",
             },
             new()
             {

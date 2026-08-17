@@ -1,3 +1,4 @@
+using ClaudeSemaforo.Core;
 using ClaudeSemaforo.Ui;
 
 namespace ClaudeSemaforo;
@@ -7,6 +8,14 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        // Chamado pelo Claude Code como hook, com o evento em JSON no stdin. Não abre
+        // janela: só levanta ou baixa o alerta da sessão e sai.
+        if (args.Contains("--hook"))
+        {
+            HookHandler.Run();
+            return;
+        }
+
         // "--demo" cicla os três estados para conferir o visual sem esperar cada situação.
         var demo = args.Contains("--demo");
 

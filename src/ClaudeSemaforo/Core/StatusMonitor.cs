@@ -20,6 +20,8 @@ public sealed class StatusMonitor : IDisposable
     private DateTime _usageCheckedAt = DateTime.MinValue;
     private string? _idleTranscript;
     private DateTime _idleScannedAt = DateTime.MinValue;
+    private bool _alertsConfigured;
+    private DateTime _hooksCheckedAt = DateTime.MinValue;
 
     public event Action<StatusSnapshot>? Updated;
 
@@ -55,27 +57,47 @@ public sealed class StatusMonitor : IDisposable
             _usageCheckedAt = now;
         }
 
-        var sessions = SessionScanner.Scan();
+        if (now - _hooksCheckedAt >= IdleScanInterval)
+        {
+            _alertsConfigured = HookStatus.Configured();
+            _hooksCheckedAt = now;
+        }
 
-        // Entre várias sessões vivas, a mais grave manda: bloqueado > trabalhando > concluído.
+        var sessions = SessionScanner.Scan();
+        var alerts = AlertStore.Active();
+
+        // Entre várias sessões vivas manda a mais grave:
+        // bloqueado > esperando o usuário > trabalhando > concluído.
         var state = ActivityState.Unknown;
         string? blockedMessage = null;
         string? project = null;
         string? sessionName = null;
+        string? waitingKind = null;
         DateTime? lastActivity = null;
 
         foreach (var session in sessions)
         {
             var read = _transcripts.Read(session);
-            if (read is null) continue;
+            var alert = alerts.FirstOrDefault(a => a.SessionId == session.SessionId);
 
-            if (read.TimestampUtc > lastActivity || lastActivity is null)
-                lastActivity = read.TimestampUtc;
+            // Um alerta pendente supera o que a transcrição diz — ela para no tool_use e
+            // parece "trabalhando" justamente enquanto o Claude espera a autorização.
+            var sessionState = read?.State == ActivityState.Blocked
+                ? ActivityState.Blocked
+                : alert is not null
+                    ? ActivityState.Waiting
+                    : read?.State ?? ActivityState.Unknown;
 
-            if (Severity(read.State) <= Severity(state)) continue;
+            if (sessionState == ActivityState.Unknown) continue;
 
-            state = read.State;
-            blockedMessage = read.Message;
+            if (read?.TimestampUtc is { } ts && (lastActivity is null || ts > lastActivity))
+                lastActivity = ts;
+
+            if (Severity(sessionState) <= Severity(state)) continue;
+
+            state = sessionState;
+            waitingKind = alert?.Kind;
+            blockedMessage = read?.Message;
             project = ProjectNameOf(session.Cwd) ?? session.Name;
             sessionName = session.Name;
         }
@@ -118,6 +140,8 @@ public sealed class StatusMonitor : IDisposable
             ActiveSessions = sessions.Count,
             ProjectName = project,
             SessionName = sessionName,
+            WaitingKind = waitingKind,
+            AlertsConfigured = _alertsConfigured,
             BlockedMessage = blockedMessage,
             LastActivityUtc = lastActivity,
             SessionUsage = _lastUsage?.FiveHour,
@@ -128,7 +152,8 @@ public sealed class StatusMonitor : IDisposable
 
     private static int Severity(ActivityState state) => state switch
     {
-        ActivityState.Blocked => 3,
+        ActivityState.Blocked => 4,
+        ActivityState.Waiting => 3,
         ActivityState.Working => 2,
         ActivityState.Done => 1,
         _ => 0,
