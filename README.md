@@ -43,8 +43,11 @@ e só quando a data de modificação muda.
   | Idade da medida | O que a barra faz |
   |---|---|
   | até 20 min | anel sólido, número normal |
-  | 20 min a 5 h | anel **pontilhado**, número esmaecido, tooltip diz "pelo menos X%" |
-  | mais de 5 h | anel vazio com `–`: a janela de 5 h já virou e o número não diz mais nada |
+  | mais que isso | anel **pontilhado**, número esmaecido, tooltip com a hora da medida |
+  | nunca mediu | anel vazio com `–` |
+
+  O número aparece mesmo velho: um valor marcado como velho informa mais que um anel
+  vazio. O `–` fica só para quando não existe medida nenhuma.
 
   No instante em que a medida volta a ser gravada, a barra mostra o número novo: além do
   polling de 5 s, um `FileSystemWatcher` avisa na hora que o arquivo mudou. Medido: três

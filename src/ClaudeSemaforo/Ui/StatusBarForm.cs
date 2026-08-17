@@ -246,10 +246,9 @@ internal sealed class StatusBarForm : Form
 
         var freshness = _snapshot.Freshness;
 
-        // Sem amostra, ou com uma mais velha que a própria janela de 5 h: não há número
-        // honesto a mostrar, então o anel fica vazio em vez de exibir um valor obsoleto.
-        if (_snapshot.SessionUsage is not { } percent
-            || freshness is UsageFreshness.Missing or UsageFreshness.Expired)
+        // O traço fica só para quando nunca houve medida. Havendo uma, ela aparece mesmo
+        // velha: um número marcado como velho informa mais que um anel vazio.
+        if (_snapshot.SessionUsage is not { } percent || freshness == UsageFreshness.Missing)
         {
             using var unknown = new SolidBrush(_theme.TextDim);
             using var fmt = Centered();
@@ -257,7 +256,7 @@ internal sealed class StatusBarForm : Form
             return;
         }
 
-        var stale = freshness == UsageFreshness.Stale;
+        var stale = freshness != UsageFreshness.Fresh;
         var color = stale ? _theme.Fade(_theme.ForUsage(percent), 0.55f) : _theme.ForUsage(percent);
 
         if (percent > 0)
