@@ -540,25 +540,25 @@ internal sealed class StatusBarForm : Form
             {
                 State = ActivityState.Working, LiveSession = true, ActiveSessions = 2,
                 ProjectName = "civilcalc", SessionUsage = 48, WeeklyUsage = 50,
-                UsageSampledUtc = DateTime.UtcNow,
+                UsageSampledUtc = DateTime.UtcNow, UsageAgeMinutes = 0,
             },
             new()
             {
                 State = ActivityState.Done, LiveSession = true, ActiveSessions = 1,
                 ProjectName = "civilcalc", SessionUsage = 72, WeeklyUsage = 50,
-                UsageSampledUtc = DateTime.UtcNow,
+                UsageSampledUtc = DateTime.UtcNow, UsageAgeMinutes = 0,
             },
             new()
             {
                 State = ActivityState.Waiting, LiveSession = true, ActiveSessions = 1,
                 ProjectName = "civilcalc", SessionUsage = 83, WeeklyUsage = 55,
-                UsageSampledUtc = DateTime.UtcNow, WaitingKind = "permission_prompt",
+                UsageSampledUtc = DateTime.UtcNow, UsageAgeMinutes = 0, WaitingKind = "permission_prompt",
             },
             new()
             {
                 State = ActivityState.Blocked, LiveSession = true, ActiveSessions = 1,
                 ProjectName = "civilcalc", SessionUsage = 100, WeeklyUsage = 61,
-                UsageSampledUtc = DateTime.UtcNow,
+                UsageSampledUtc = DateTime.UtcNow, UsageAgeMinutes = 0,
                 BlockedMessage = "You've hit your session limit · resets 11:50pm (America/Sao_Paulo)",
             },
             new() { State = ActivityState.Done, SessionUsage = 12, WeeklyUsage = 50, UsageSampledUtc = DateTime.UtcNow },

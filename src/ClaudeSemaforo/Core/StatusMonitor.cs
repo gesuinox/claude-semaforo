@@ -9,13 +9,18 @@ namespace ClaudeSemaforo.Core;
 /// </summary>
 public sealed class StatusMonitor : IDisposable
 {
-    private static readonly TimeSpan UsageInterval = TimeSpan.FromSeconds(20);
+    // Curto de propósito: quando o Claude enfim grava a medida, a barra mostra o número
+    // novo em segundos. A leitura é barata — o UsageReader só abre o arquivo se o
+    // horário de modificação mudou.
+    private static readonly TimeSpan UsageInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan IdleScanInterval = TimeSpan.FromSeconds(30);
 
     private readonly Timer _timer = new() { Interval = 1000 };
     private readonly UsageReader _usage = new();
     private readonly TranscriptReader _transcripts = new();
 
+    private FileSystemWatcher? _usageWatcher;
+    private volatile bool _usageDirty = true;
     private UsageSample? _lastUsage;
     private DateTime _usageCheckedAt = DateTime.MinValue;
     private string? _idleTranscript;
@@ -34,8 +39,37 @@ public sealed class StatusMonitor : IDisposable
 
     public void Start()
     {
+        WatchUsageFile();
         Refresh();
         _timer.Start();
+    }
+
+    /// <summary>
+    /// Avisa no instante em que o Claude regrava o histórico de uso, sem esperar o
+    /// próximo tique. O polling continua como rede de segurança — o watcher pode perder
+    /// eventos se o arquivo for substituído em vez de reescrito.
+    /// </summary>
+    private void WatchUsageFile()
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(ClaudePaths.UsageHistoryFile);
+            if (directory is null || !Directory.Exists(directory)) return;
+
+            _usageWatcher = new FileSystemWatcher(directory, Path.GetFileName(ClaudePaths.UsageHistoryFile))
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,
+                EnableRaisingEvents = true,
+            };
+
+            _usageWatcher.Changed += (_, _) => _usageDirty = true;
+            _usageWatcher.Created += (_, _) => _usageDirty = true;
+            _usageWatcher.Renamed += (_, _) => _usageDirty = true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            // Sem watcher o polling de 5 s ainda dá conta.
+        }
     }
 
     public void Refresh()
@@ -51,8 +85,9 @@ public sealed class StatusMonitor : IDisposable
     {
         var now = DateTime.UtcNow;
 
-        if (now - _usageCheckedAt >= UsageInterval)
+        if (_usageDirty || now - _usageCheckedAt >= UsageInterval)
         {
+            _usageDirty = false;
             _lastUsage = _usage.Read();
             _usageCheckedAt = now;
         }
@@ -147,6 +182,9 @@ public sealed class StatusMonitor : IDisposable
             SessionUsage = _lastUsage?.FiveHour,
             WeeklyUsage = _lastUsage?.SevenDay,
             UsageSampledUtc = _lastUsage?.SampledUtc,
+            UsageAgeMinutes = _lastUsage is { } u
+                ? Math.Max(0, (int)(now - u.SampledUtc).TotalMinutes)
+                : null,
         };
     }
 
@@ -165,5 +203,9 @@ public sealed class StatusMonitor : IDisposable
         return string.IsNullOrEmpty(name) ? null : name;
     }
 
-    public void Dispose() => _timer.Dispose();
+    public void Dispose()
+    {
+        _timer.Dispose();
+        _usageWatcher?.Dispose();
+    }
 }

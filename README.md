@@ -46,8 +46,9 @@ e só quando a data de modificação muda.
   | 20 min a 5 h | anel **pontilhado**, número esmaecido, tooltip diz "pelo menos X%" |
   | mais de 5 h | anel vazio com `–`: a janela de 5 h já virou e o número não diz mais nada |
 
-  Para o valor exato do momento, o `/usage` dentro do Claude é a fonte — e rodá-lo
-  costuma provocar uma nova gravação, que a barra pega em até 20 s.
+  No instante em que a medida volta a ser gravada, a barra mostra o número novo: além do
+  polling de 5 s, um `FileSystemWatcher` avisa na hora que o arquivo mudou. Medido: três
+  segundos entre a gravação e o anel voltar a sólido.
 - **Não dá para embutir o widget na barra de tarefas do Windows.** A API de DeskBand foi
   descontinuada pela Microsoft. A barra é uma janela sem borda sempre no topo, que se
   arrasta com o mouse e gruda onde você largar.

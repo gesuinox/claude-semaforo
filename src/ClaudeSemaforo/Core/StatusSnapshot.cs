@@ -67,18 +67,25 @@ public sealed record StatusSnapshot
     /// <summary>Quando o Claude coletou a amostra. A gravação é irregular: pode ficar horas parada.</summary>
     public DateTime? UsageSampledUtc { get; init; }
 
+    /// <summary>
+    /// Idade da amostra em minutos inteiros. É um campo, e não um cálculo na hora da
+    /// leitura, porque o snapshot é um record comparado por valor: sem ele o envelhecer da
+    /// medida não mudaria nada e a barra nunca seria redesenhada nem o tooltip refeito.
+    /// </summary>
+    public int? UsageAgeMinutes { get; init; }
+
     public TimeSpan? UsageAge =>
-        UsageSampledUtc is { } at ? DateTime.UtcNow - at : null;
+        UsageAgeMinutes is { } m ? TimeSpan.FromMinutes(m) : null;
 
     /// <summary>
     /// Passadas 5 horas a janela de uso já virou e o número não descreve mais nada; antes
     /// disso ele ainda serve como piso, mas precisa aparecer como velho.
     /// </summary>
-    public UsageFreshness Freshness => UsageAge switch
+    public UsageFreshness Freshness => UsageAgeMinutes switch
     {
         null => UsageFreshness.Missing,
-        { TotalHours: >= 5 } => UsageFreshness.Expired,
-        { TotalMinutes: >= 20 } => UsageFreshness.Stale,
+        >= 300 => UsageFreshness.Expired,
+        >= 20 => UsageFreshness.Stale,
         _ => UsageFreshness.Fresh,
     };
 
