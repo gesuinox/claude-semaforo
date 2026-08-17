@@ -261,12 +261,11 @@ internal sealed class StatusBarForm : Form
 
         if (percent > 0)
         {
-            // Arco pontilhado quando a medida está velha: o número é um piso, não o valor de agora.
+            // O arco é sempre contínuo; medida velha se distingue pela cor mais apagada.
             using var pen = new Pen(color, thickness)
             {
                 StartCap = LineCap.Round,
                 EndCap = LineCap.Round,
-                DashStyle = stale ? DashStyle.Dot : DashStyle.Solid,
             };
             g.DrawArc(pen, rect, -90f, 360f * Math.Clamp(percent, 0, 100) / 100f);
         }
